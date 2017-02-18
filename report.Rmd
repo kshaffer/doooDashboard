@@ -1,0 +1,126 @@
+---
+title: "Domain of One's Own Monthly Report"
+author: "Kris Shaffer, DTLT"
+date: "February 17, 2017"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(lubridate)
+knitr::opts_chunk$set(echo = FALSE)
+active_domains <- read_csv('dataOutput/active_domains_by_month.csv')
+dooo <- read_csv('dataOutput/dooo_merged_dates.csv')
+report_month_date <- tail(ymd(active_domains[!is.na(active_domains$date),]$date), n=2)[1]
+report_year <- substr(as.character(report_month_date), 1, 4)
+report_month <- substr(as.character(report_month_date), 6, 7)
+report_year_month <- substr(as.character(report_month_date), 1, 7)
+projection_month_date <- tail(ymd(active_domains[!is.na(active_domains$date),]$date), n=1)
+projection_year <- substr(as.character(projection_month_date), 1, 4)
+projection_month <- substr(as.character(projection_month_date), 6, 7)
+projection_year_month <- substr(as.character(projection_month_date), 1, 7)
+```
+
+## Overview
+
+<hr/>
+
+UMW Domain of One\'s Own has <strong>`r tail(active_domains, n=1)$domains` active domains,</strong> as of `r gsub(' 0', ' ', format(strptime(max(ymd(dooo[!is.na(dooo$signup),]$signup)), '%Y-%m-%d'), '%B %d, %Y'))`.
+                  
+We have assigned a total of <strong>`r length(unique(dooo$url))` domains</strong> to <strong>`r length(unique(dooo[dooo$group_status=='Student',]$netid))` students</strong> and <strong>`r length(unique(dooo[dooo$group_status=='Faculty/Staff',]$netid))` faculty/staff</strong> since the beginning of the Domain of One\'s Own program in February 2012.
+
+```{r echo=FALSE, fig.align='center'}
+active_domains %>%
+        ggplot(aes(ymd(date), as.numeric(domains), fill = -as.numeric(domains))) +
+        geom_col() +
+        scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+        #geom_smooth(se = FALSE) +
+        ggtitle('Total Active Domains by Month') +
+        theme(plot.title = element_text(lineheight=.8, face='bold', size=16, hjust=0.5),
+              legend.position="none") +
+        xlab('Month') +
+        ylab('Number of active domains')
+```
+
+## Monthly report: `r format(strptime(report_month_date, '%Y-%m-%d'), '%B %Y')`
+
+<hr/>
+
+We had <strong>`r nrow(dooo %>% filter(year_month == report_year_month, !is.na(url)) %>% select(url) %>% unique())` new domain registrations, `r nrow(dooo %>% filter(exp_date - years(1) >= ymd(report_month_date), exp_date - years(1) < ymd(report_month_date) + months(1), signup < ymd(report_month_date), !is.na(url)) %>% select(url) %>% unique())` renewals,</strong> and <strong>`r nrow(dooo %>% filter(exp_date >= ymd(report_month_date), exp_date < ymd(report_month_date) + months(1), !is.na(url)) %>% select(url) %>% unique())` domains expire</strong> in the month of `r format(strptime(report_month_date, '%Y-%m-%d'), '%B %Y')`.
+
+```{r echo=FALSE, fig.align='center'}
+kable(
+  dooo %>%
+  filter(year_month == report_year_month,
+         !is.na(url)) %>%
+  unique() %>%
+  mutate(group = group_status) %>%
+  group_by(group, class) %>%
+  summarize(count = n()) %>%
+  arrange(desc(count)),
+  caption = 'New registrations by group'
+)
+
+dooo %>%
+  filter(ymd(report_month_date) - years(1) + months(1) <= ymd(signup),
+         ymd(signup) < ymd(report_month_date) + months(1),
+         !is.na(url)) %>%
+  unique() %>%
+  mutate(group = paste(group_status, '-', class),
+         plot_month = ymd(paste(year_month, '-01', sep = ''))) %>%
+  group_by(group, plot_month) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(plot_month, count, fill = group)) +
+  geom_col() +
+  scale_x_date(date_breaks = "3 months", date_labels = "%b %Y") +
+  xlab('Month') +
+  ylab('Number of new registrations') +
+  ggtitle('Domain of One\'s Own registrations over the past 12 months') +
+  guides(fill=guide_legend(title="Group")) 
+```
+
+## Monthly projection: `r format(strptime(projection_month_date, '%Y-%m-%d'), '%B %Y')`
+
+<hr/>
+
+```{r echo = FALSE}
+monthly_model <- dooo %>%
+  filter(!is.na(url)) %>%
+  select(url, year_month) %>%
+  unique() %>%
+  group_by(year_month) %>%
+  summarize(count = n()) %>%
+  mutate(prior_1mo = lag(count),
+         prior_2mo = lag(count, 2),
+         prior_3mo = lag(count, 3),
+         prior_12mo = lag(count, 12),
+         prior_24mo = lag(count, 24)
+         )
+
+# annual_lag_model <- lm(count ~ prior_12mo + prior_24mo, monthly_model)
+# summary(annual_lag_model)
+```
+
+In `r format(strptime(projection_month_date, '%Y-%m-%d'), '%B %Y')`, we have <Strong>`r nrow(dooo %>% filter(exp_date >= ymd(projection_month_date), exp_date < ymd(projection_month_date) + months(1), !is.na(url)) %>% select(url) %>% unique())` domains scheduled to expire</strong> (or renew).
+
+Based on a linear model of past Domain of One's Own registration activity, we expect approximately <strong>`r round(11.17 + .9 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_12mo)) - .15 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_24mo)), 0)` new registrations</strong> in `r format(strptime(projection_month_date, '%Y-%m-%d'), '%B %Y')`. *Please note that these projections are only rough estimates, based on a small data set without accounting for special events and initiatives that may have contributed to registration counts in the past.*
+
+```{r echo=FALSE, fig.align='center'}
+dooo %>%
+  filter(month == projection_month,
+         year < projection_year,
+         !is.na(url)) %>%
+  unique() %>%
+  mutate(group = paste(group_status, '-', class)) %>%
+  group_by(group, year) %>%
+  summarize(count = n()) %>%
+  ggplot(aes(year, count, fill = group)) +
+  geom_col() +
+  xlab('Year') +
+  ylab('Number of new registrations') +
+  ggtitle(paste('Domain of One\'s Own registrations in', format(strptime(projection_month_date, '%Y-%m-%d'), '%B'))) +
+  guides(fill=guide_legend(title="Group")) 
+```
+

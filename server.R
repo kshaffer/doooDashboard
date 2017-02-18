@@ -1,24 +1,10 @@
 # Domain of One's Own Dashboard - Shiny App server script
 
 # Import ggplot and data tables created by dooo.R
-library('ggplot2')
-signups_by_year <- read.csv('dataOutput/signups_academic_year.csv')
-signups_by_term <- read.csv('dataOutput/signups_academic_term.csv')
-signups_by_month <- read.csv('dataOutput/signups_month.csv')
-dooo <- read.csv('dataOutput/dooo_simplified_and_merged.csv')
-active_domains <- read.csv('dataOutput/active_domains_by_month.csv')
-
-# Collect time frame from UI menu
-
-chooseTimeFrame <- function (time_frame) {
-  if (time_frame == 'academic_year') {
-    return(signups_by_year)
-  } else if (time_frame == 'year_term') {
-    return(signups_by_term)
-  } else {
-    return(signups_by_month)
-  }
-}
+library(tidyverse)
+library(lubridate)
+dooo <- read_csv('/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
+active_domains <- read_csv('/srv/shiny-server/dataOutput/active_domains_by_month.csv')
 
 
 # Server backend
@@ -31,7 +17,7 @@ shinyServer(
       {HTML(paste('UMW Domain of One\'s Own has <strong>',
                   tail(active_domains, n=1)$domains, 
                   ' active domains,</strong> as of ',
-                  gsub(' 0', ' ', format(strptime(tail(active_domains, n=1)$date, '%Y-%m-%d'), '%B %d, %Y')),
+                  gsub(' 0', ' ', format(strptime(max(ymd(dooo[!is.na(dooo$signup),]$signup)), '%Y-%m-%d'), '%B %d, %Y')),
                   '.',
                   sep=''))})
     
@@ -39,9 +25,9 @@ shinyServer(
       {HTML(paste('We have assigned a total of <strong>',
                   length(unique(dooo$url)), 
                   ' domains</strong> to <strong>',
-                  length(unique(dooo[dooo$status=='Student',]$netID)), 
+                  length(unique(dooo[dooo$group_status=='Student',]$netid)), 
                   ' students</strong> and <strong>',
-                  length(unique(dooo[dooo$status=='Faculty/Staff',]$netID)), 
+                  length(unique(dooo[dooo$group_status=='Faculty/Staff',]$netid)), 
                   ' faculty/staff</strong> since the beginning of the Domain of One\'s Own program.',
                   sep=''))})
     
@@ -55,19 +41,22 @@ shinyServer(
     
     # Plot of active domains over time
     output$domains_over_time <- renderPlot({
-      ggplot(active_domains) +
-        geom_point(aes(month, domains)) +
-        geom_smooth(aes(month, domains), se = FALSE) +
+      active_domains %>%
+        ggplot(aes(ymd(date), as.numeric(domains), fill = -as.numeric(domains))) +
+        geom_col() +
+        scale_x_date(date_breaks = "1 year", date_labels = "%b %Y") +
+        #geom_smooth(se = FALSE) +
         ggtitle('Total Active Domains by Month') +
-        theme(plot.title = element_text(lineheight=.8, face='bold', size=16, hjust=0.5)) +
-        xlab('Months since June 2012 (beginning of DoOO pilot)') +
+        theme(plot.title = element_text(lineheight=.8, face='bold', size=16, hjust=0.5),
+              legend.position="none") +
+        xlab('Month') +
         ylab('Number of active domains')
     })
     
     # Plot of domain registration over time, by user-selected timeframe and status parameters
     reg_data <- reactive({
       switch(input$user_group,
-             'All' = c('Student', 'Faculty/Staff', NA),
+             'All' = c('Student', 'Faculty/Staff', 'Unknown', NA),
              'Students' = 'Student',
              'Faculty/Staff' = 'Faculty/Staff')
     })
@@ -92,30 +81,35 @@ shinyServer(
       time_frame <- time_frame()
       color <- color()
       
-      # barplot(table(
-      #   dooo[dooo$status %in% reg_data,][,time_frame]), 
-      #   main = paste('New DoOO Registrations per', input$time_frame), 
-      #   xlab = input$time_frame,
-      #   col = color)
+      plot_table <- as_tibble(dooo[dooo$group_status %in% reg_data,][,c('group_status', time_frame)])
+      colnames(plot_table) <- c('group_status', 'dooo_time')
+      plot_table <- plot_table %>% filter(!is.na(dooo_time))
       
-      plot_table <- as.data.frame(dooo[dooo$status %in% reg_data,][,c('status', time_frame)])
-      colnames(plot_table) <- c('status', 'dooo_time')
-      
-      ggplot(plot_table) +
-        geom_bar(aes(x = dooo_time,
-                     fill = status
-                     )) +
-        ggtitle(paste('New DoOO Registrations per', input$time_frame)) +
-        theme(plot.title = element_text(lineheight=.8, face='bold', size=16, hjust=0.5)) +
-        xlab(input$time_frame) +
-        ylab('New registrations') +
-        coord_flip()
+      plot_table %>%
+        ggplot() +
+          geom_bar(aes(x = dooo_time,
+                       fill = group_status
+                       )) +
+          ggtitle(paste('New DoOO Registrations per', input$time_frame)) +
+          theme(plot.title = element_text(lineheight=.8, face='bold', size=16, hjust=0.5)) +
+          labs(fill = 'Status') +
+          xlab(input$time_frame) +
+          ylab('New registrations') +
+          coord_flip()
     })
     
     # Table of new domain signups, by user-selected timeframe parameter
     output$signups_table <- renderDataTable(
       {
-        chooseTimeFrame(time_frame())[order(chooseTimeFrame(time_frame())[1], decreasing=TRUE),]
+        #chooseTimeFrame(time_frame())[order(chooseTimeFrame(time_frame())[1], decreasing=TRUE),]
+        time_frame <- time_frame()
+        group_list <- lapply(c(time_frame, 'group_status'), as.symbol)
+        dooo %>%
+          select(group_status, matches(time_frame)) %>%
+          group_by_(.dots=group_list) %>%
+          summarize(count = n()) %>%
+          spread(group_status, count) 
+          
         },
       options = list(lengthMenu = c(12, 24, 36), pageLength = 12)
     )

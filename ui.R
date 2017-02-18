@@ -1,5 +1,5 @@
 # Domain of One's Own Dashboard - Shiny App UI script
-
+library(shiny)
 library(shinydashboard)
 
 # Title header
