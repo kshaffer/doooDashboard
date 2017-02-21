@@ -87,10 +87,14 @@ dooo_simplified <- dooo %>%
 # is domain active on a particular date?
 
 isDomainActive <- function (record, date) {
-  registered <- as.character(record['signup'])
-  expired <- as.character(record['exp_date'])
-  if (!is.na(registered) & !is.na(expired) & date >= registered & date < expired) {
-    return(TRUE)
+  if (!is.na(record['url'])) {
+    registered <- as.character(record['signup'])
+    expired <- as.character(record['exp_date'])
+    if (!is.na(registered) & !is.na(expired) & date >= registered & date < expired) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
   } else {
     return(FALSE)
   }
@@ -149,6 +153,7 @@ activeDomains <- sapply(date_list,
 domainActivity <- as_tibble(cbind(date = date_list, domains = activeDomains))
 
 write_csv(domainActivity, '/srv/shiny-server/dataOutput/active_domains_by_month.csv')
+write_csv(as_tibble(countActiveDomains(Sys.Date(), dooo_simplified)), '/srv/shiny-server/dataOutput/current_active_domains.csv')
 
 
 # clean user status (student, faculty/staff, unknown)
@@ -169,20 +174,22 @@ write_csv(dooo_with_status, '/srv/shiny-server/dataOutput/dooo_merged_dates.csv'
 
 
 # look for duplicate netids and urls
-duplicate_netids <- dooo %>%
+dooo_with_status <- read_csv('/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
+
+duplicate_netids <- dooo_with_status %>%
   group_by(netid) %>%
   summarize(count = n()) %>%
   filter(count >= 2)
 
-duplicate_domains <- dooo %>%
+duplicate_domains <- dooo_with_status %>%
   group_by(url) %>%
   summarize(count = n()) %>%
   filter(count >= 2)
 
-multiple_domain <- dooo %>%
+multiple_domain <- dooo_with_status %>%
   filter(url %in% duplicate_domains$url,
          !is.na(url))
 
-multiple_netid <- dooo %>%
+multiple_netid <- dooo_with_status %>%
   filter(!is.na(netid),
          netid %in% duplicate_netids$netid)

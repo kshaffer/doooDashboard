@@ -5,7 +5,7 @@ library(tidyverse)
 library(lubridate)
 dooo <- read_csv('/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
 active_domains <- read_csv('/srv/shiny-server/dataOutput/active_domains_by_month.csv')
-
+current_domains <- read_csv('/srv/shiny-server/dataOutput/current_active_domains.csv')
 
 # Server backend
 
@@ -23,11 +23,11 @@ shinyServer(
     
     output$domain_total <- renderUI(
       {HTML(paste('We have assigned a total of <strong>',
-                  length(unique(dooo$url)), 
+                  length(unique(dooo[!is.na(dooo$url),]$url)), 
                   ' domains</strong> to <strong>',
-                  length(unique(dooo[dooo$group_status=='Student',]$netid)), 
+                  length(unique(dooo %>% filter(!is.na(url), !is.na(netid), group_status == 'Student') %>% select(netid))$netid), 
                   ' students</strong> and <strong>',
-                  length(unique(dooo[dooo$group_status=='Faculty/Staff',]$netid)), 
+                  length(unique(dooo %>% filter(!is.na(url), !is.na(netid), group_status == 'Faculty/Staff') %>% select(netid))$netid), 
                   ' faculty/staff</strong> since the beginning of the Domain of One\'s Own program.',
                   sep=''))})
     

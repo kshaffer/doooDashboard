@@ -2,8 +2,8 @@ library(XML)
 library(tidyverse)
 library(lubridate)
 
-enom_api_url <- ''
-enom <- xmlParse(readLines(enom_api_url)) %>%
+# add enom account query string here
+enom <- xmlParse(readLines('')) %>%
   xmlToList()
 
 data_out <- tibble()

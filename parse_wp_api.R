@@ -4,8 +4,7 @@ library(lubridate)
 
 # download user table from WP REST API
 
-wp_rest_api_url <- ''
-wp <- fromJSON(wp_rest_api_url)
+wp <- fromJSON('') # insert WP REST API query string here
 
 
 # function to extract netid from UWM email addresses
