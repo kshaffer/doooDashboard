@@ -15,7 +15,7 @@ shinyServer(
     # Text info about DoOO
     output$active_total <- renderUI(
       {HTML(paste('UMW Domain of One\'s Own has <strong>',
-                  tail(active_domains, n=1)$domains, 
+                  current_domains[1,1], 
                   ' active domains,</strong> as of ',
                   gsub(' 0', ' ', format(strptime(max(ymd(dooo[!is.na(dooo$signup),]$signup)), '%Y-%m-%d'), '%B %d, %Y')),
                   '.',
@@ -30,6 +30,13 @@ shinyServer(
                   length(unique(dooo %>% filter(!is.na(url), !is.na(netid), group_status == 'Faculty/Staff') %>% select(netid))$netid), 
                   ' faculty/staff</strong> since the beginning of the Domain of One\'s Own program.',
                   sep=''))})
+    
+    output$domains_served <- renderUI({HTML(
+      paste('<strong>',
+            length(unique(dooo[!is.na(dooo$url),]$url)), 
+            ' domains claimed since February 2012',
+            sep = '')
+    )})
     
     # Table of currently active domains
     output$active_domain_table <- renderDataTable(

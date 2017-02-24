@@ -45,6 +45,7 @@ body <- dashboardBody(
   fluidRow(
     h1(strong('Domain of One\'s Own'), align='center'),
     h1('University of Mary Washington', align='center'),
+    h1(htmlOutput('domains_served'), align='center'),
     br()
   ),
   
