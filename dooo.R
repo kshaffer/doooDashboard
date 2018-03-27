@@ -3,10 +3,17 @@ source('/srv/shiny-server/merge_enom_reports.R')
 source('/srv/shiny-server/parse_wp_api.R')
 source('/srv/shiny-server/enom_api.R')
 
+library(stringr)
+
 # function to find best signup date
 find_earliest_date <- function(date1, date2, date3, date4) {
   date_list <- c(date1, date2, date3, date4)
-  return(as.character(min(date_list[!is.na(date_list)])))
+  min_date <- min(date_list, na.rm = TRUE)
+  if (min_date > Sys.Date()) {
+    return(NA)
+  } else {
+    return(as.character(min_date))
+  }
 }
 
 # function to find best expiration date
@@ -145,7 +152,8 @@ activeDomainCount <- function (date_list) {
 
 # run domain total analysis
 
-date_list <- constructListOfDates('2012-06-01', max(enom_all$reg_date))
+print(max(dooo_simplified[!is.na(dooo_simplified$signup),]$signup))
+date_list <- constructListOfDates('2012-06-01', min(max(dooo_simplified[!is.na(dooo_simplified$signup),]$signup), Sys.Date()))
 activeDomains <- sapply(date_list, 
                         countActiveDomains, 
                         dooo_simplified) %>%
@@ -167,29 +175,41 @@ get_status <- function(groupname, stst) {
   )
 }
 
+# import more detailed Banner data and sort by matriculation year
+find_matriculation_year <- function(matric, grad) {
+  if(!is.na(matric)) {
+    mat_year <- as.numeric(str_sub(matric, 1, 4))
+    mat_sem <- as.numeric(str_sub(matric, 5, 6))
+    if (mat_sem %in% c(5, 8)) {
+      mat_year <- mat_year + 1
+    }
+    return(mat_year)
+  } else if (!is.na(grad)) {
+    grad_year <- as.numeric(str_sub(grad, 1, 4))
+    grad_sem <- as.numeric(str_sub(grad, 6, 7))
+    if (grad_sem %in% c(7, 12)) {
+      grad_year <- grad_year + 1
+    }
+    if (!is.na(grad_year) & grad_year > 2080) {
+      grad_year <- grad_year - 100
+    }
+    return(grad_year - 3)
+  } else {
+    return(NA)
+  }
+  
+}
+
+user_list <- read_csv('/srv/shiny-server/dataSources/user_list.csv') %>%
+  select(netid, department, employee_class, student_class, matriculation_date)
+
 dooo_with_status <- dooo_simplified %>%
-  mutate(group_status = mapply(get_status, groupname, stst))
+  mutate(group_status = mapply(get_status, groupname, stst)) %>%
+  left_join(user_list) %>%
+  mutate(matriculation_year = mapply(find_matriculation_year, matriculation_date, grad_date_sort),
+         class_of = matriculation_year + 3,
+         year_of_study = as.numeric(str_sub(academic_year, 6, 9)) - matriculation_year + 1)
+
 
 write_csv(dooo_with_status, '/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
-
-
-# look for duplicate netids and urls
-dooo_with_status <- read_csv('/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
-
-duplicate_netids <- dooo_with_status %>%
-  group_by(netid) %>%
-  summarize(count = n()) %>%
-  filter(count >= 2)
-
-duplicate_domains <- dooo_with_status %>%
-  group_by(url) %>%
-  summarize(count = n()) %>%
-  filter(count >= 2)
-
-multiple_domain <- dooo_with_status %>%
-  filter(url %in% duplicate_domains$url,
-         !is.na(url))
-
-multiple_netid <- dooo_with_status %>%
-  filter(!is.na(netid),
-         netid %in% duplicate_netids$netid)
+write_csv(dooo_with_status, paste('/srv/shiny-server/dataOutput/dooo_merged_dates_', Sys.Date(), '.csv', sep = ''))

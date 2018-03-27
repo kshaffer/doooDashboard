@@ -3,9 +3,14 @@
 # Import ggplot and data tables created by dooo.R
 library(tidyverse)
 library(lubridate)
+library(stringr)
+
 dooo <- read_csv('/srv/shiny-server/dataOutput/dooo_merged_dates.csv')
 active_domains <- read_csv('/srv/shiny-server/dataOutput/active_domains_by_month.csv')
 current_domains <- read_csv('/srv/shiny-server/dataOutput/current_active_domains.csv')
+# dooo <- read_csv('dataOutput/dooo_merged_dates.csv')
+# active_domains <- read_csv('dataOutput/active_domains_by_month.csv')
+# current_domains <- read_csv('dataOutput/current_active_domains.csv')
 
 # Server backend
 
@@ -17,7 +22,7 @@ shinyServer(
       {HTML(paste('UMW Domain of One\'s Own has <strong>',
                   current_domains[1,1], 
                   ' active domains,</strong> as of ',
-                  gsub(' 0', ' ', format(strptime(max(ymd(dooo[!is.na(dooo$signup),]$signup)), '%Y-%m-%d'), '%B %d, %Y')),
+                  gsub(' 0', ' ', format(strptime(min(max(ymd(dooo[!is.na(dooo$signup),]$signup)), Sys.Date()), '%Y-%m-%d'), '%B %d, %Y')),
                   '.',
                   sep=''))})
     
@@ -103,6 +108,62 @@ shinyServer(
           xlab(input$time_frame) +
           ylab('New registrations') +
           coord_flip()
+    })
+    
+    # Plot of signups by graduating class
+    output$grad_class_column_plot <- renderPlot({
+      dooo %>% 
+        filter(is.na(student_class) | !student_class == 'GR') %>%
+        filter(!is.na(class_of),
+               class_of >= 2014) %>%
+        count(academic_year, class_of) %>%
+        ggplot(aes(academic_year, n, fill = as.factor(class_of))) + 
+        geom_col() +
+        ggtitle('Annual Domain of One\'s Own signups by graduating class\n(matriculation dates used for current and inactive students,\ngraduate students excluded)') +
+        xlab('Signup year') +
+        ylab('Total signups') +
+        guides(fill=guide_legend(title = 'Graduating class'))
+    })
+    
+    # Plot of signups by graduating class
+    output$grad_class_line_plot <- renderPlot({
+      dooo %>% 
+        filter(is.na(student_class) | !student_class == 'GR') %>%
+        filter(!is.na(class_of),
+               class_of >= 2014) %>%
+        filter(year_of_study < 7,
+               year_of_study > 0,
+               academic_year >= 2012,
+               academic_year < 2017) %>%
+        count(academic_year, year_of_study) %>%
+        ggplot(aes(as.numeric(str_sub(academic_year, 6, 9)), n, color = as.factor(year_of_study))) +
+        geom_line(alpha = 0.8, size = 0.8) +
+        ggtitle('Annual Domain of One\'s Own signups by year of study\n(graduate students excluded)') +
+        xlab('Signup year(academic year ending)') +
+        ylab('Total signups') +
+        guides(color = guide_legend(title = 'Year of study\n(Fr=1, So=2, ...)'))
+    })
+    
+    # Table of signups by graduating class
+    output$grad_class_line_table <- renderDataTable({
+      dooo %>% 
+        filter(is.na(student_class) | !student_class == 'GR') %>%
+        filter(!is.na(class_of),
+               class_of >= 2014) %>%
+        filter(year_of_study < 7,
+               year_of_study > 0,
+               academic_year >= 2012,
+               academic_year < 2017) %>%
+        count(academic_year, year_of_study) 
+    })
+    
+    # Table of signups by graduating class
+    output$grad_class_column_table <- renderDataTable({
+      dooo %>% 
+        filter(is.na(student_class) | !student_class == 'GR') %>%
+        filter(!is.na(class_of),
+               class_of >= 2014) %>%
+        count(academic_year, class_of) 
     })
     
     # Table of new domain signups, by user-selected timeframe parameter

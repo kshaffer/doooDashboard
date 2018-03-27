@@ -82,7 +82,7 @@ clean_netid <- function (record_number) {
 
 # import data from banner report
 
-banner_temp <- read_csv('/srv/shiny-server/dataSources/dooo_accounts_2017_02_10.csv')
+banner_temp <- read_csv('/srv/shiny-server/dataSources/dooo_accounts_current.csv')
 
 banner <- banner_temp %>%
   mutate(netid = mapply(generate_netid, netid, email),

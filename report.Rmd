@@ -1,7 +1,6 @@
 ---
 title: "Domain of One's Own Monthly Report"
-author: "Kris Shaffer, DTLT"
-date: "February 17, 2017"
+author: ""
 output:
   html_document: default
 ---
@@ -158,7 +157,7 @@ kable(
 
 <br/>
 
-Based on a linear model of past Domain of One's Own registration activity, we expect approximately <strong>`r round(11.17 + .9 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_12mo)) - .15 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_24mo)), 0)` new registrations</strong> in `r format(strptime(projection_month_date, '%Y-%m-%d'), '%B %Y')`. *Please note that these projections are only rough estimates, based on a small data set without accounting for special events and initiatives that may have contributed to registration counts in the past.*
+# Based on a linear model of past Domain of One's Own registration activity, we expect approximately <strong>`r round(11.17 + .9 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_12mo)) - .15 * (monthly_model %>% filter(year_month == projection_year_month) %>% select(prior_24mo)), 0)` new registrations</strong> in `r format(strptime(projection_month_date, '%Y-%m-%d'), '%B %Y')`. *Please note that these projections are only rough estimates, based on a small data set without accounting for special events and initiatives that may have contributed to registration counts in the past.*
 
 <br/>
 
@@ -179,4 +178,3 @@ dooo %>%
   ggtitle(paste('Domain of One\'s Own registration history for the month of', format(strptime(projection_month_date, '%Y-%m-%d'), '%B'))) +
   guides(fill=guide_legend(title="Group")) 
 ```
-

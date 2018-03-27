@@ -99,13 +99,49 @@ body <- dashboardBody(
                      selected = 'Academic Year')
        )
     )
+  ),
+  
+  # Title header for third row of dashboard
+  fluidRow(
+    hr(),
+    h1('Student cohorts', align='center')
+  ),
+  
+  fluidRow(
+    column(2),
+    
+    column(8,
+      # General text information about DoOO with highlight total stats
+      h3('After starting strong with upper-class students, DTLT and the DKC hav made a concerted effort to engage new UMW students with Domain of One\'s Own in their first year of study, through both Freshman Seminars (FSEMs) and new-student orientation.'),
+      hr()
+    ),
+    
+    column(2)
+  ),
+  
+  fluidRow(
+    column(6,
+           
+           # New registrations over time - plot/table tabs selected by user
+           tabsetPanel(
+             tabPanel('Plot', plotOutput('grad_class_column_plot')),
+             tabPanel('Table', dataTableOutput('grad_class_column_table'))
+           )
+    ),
+    column(6,
+           # New registrations over time - plot/table tabs selected by user
+           tabsetPanel(
+             tabPanel('Plot', plotOutput('grad_class_line_plot')),
+             tabPanel('Table', dataTableOutput('grad_class_line_table'))
+           )
+    )
   )
 )
 
 
 # Build the dashboard page
 shinyUI(
-  dashboardPage(header, sidebar, body)
+  dashboardPage(header, sidebar, body, skin = 'black')
 )
 
 
